@@ -232,7 +232,13 @@ python tests/test_recorder.py
 python tests/test_dashboard.py   # 需要 rich（requirements.txt 已含）
 ```
 
-### 2.3 第一次运行：只采集数据
+### 2.3 第一次运行：只采集数据（不是模拟交易）
+
+> 先明确一个容易混淆的点：本教程里没有“模拟交易/模拟盘/仿真成交”。
+> 下面的命令是项目的 **record-only（仅采集）模式**，不是纸上交易。
+> 它只是连接两个交易所的**真实行情 websocket**，把盘口数据记录到
+> `logs/minutes.csv`；它不会启动策略循环、不会生成订单、不会模拟成交，
+> 也不需要 `.env` 密钥。
 
 ```bash
 python main.py --record-only --symbol SNDK --hedge lighter-rh
