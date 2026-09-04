@@ -52,27 +52,53 @@ def setup_logging(level: str, log_file: str = None,
     logging.getLogger("websockets").setLevel(logging.WARNING)
 
 
+@contextlib.contextmanager
+def _signal_handlers(loop, callback):
+    """Install asyncio signal handlers with a Windows-compatible fallback."""
+    previous_handlers = {}
+    loop_handlers = []
+
+    def request_stop(_signum, _frame):
+        loop.call_soon_threadsafe(callback)
+
+    try:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            previous_handlers[sig] = signal.getsignal(sig)
+            try:
+                loop.add_signal_handler(sig, callback)
+            except NotImplementedError:
+                # ProactorEventLoop on Windows has no add_signal_handler().
+                signal.signal(sig, request_stop)
+            else:
+                loop_handlers.append(sig)
+        yield
+    finally:
+        for sig in loop_handlers:
+            loop.remove_signal_handler(sig)
+        for sig, handler in previous_handlers.items():
+            signal.signal(sig, handler)
+
+
 async def amain(cfg, record_only: bool, use_dashboard: bool, force_tty: bool,
                 log_buffer, lang: str) -> None:
     eng = Engine(cfg, record_only=record_only)
     loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, eng.request_stop)
-    if not use_dashboard:
-        await eng.run()
-        return
-    from entropy_arb.dashboard import Dashboard
-    dash = Dashboard(eng, log_buffer, cfg.log_file, force_terminal=force_tty,
-                     lang=lang)
-    dash_task = asyncio.create_task(dash.run(), name="dashboard")
-    try:
-        await eng.run()
-    finally:
-        eng.request_stop()
-        with contextlib.suppress(Exception):
-            await asyncio.wait_for(dash_task, timeout=5)
-        if not dash_task.done():
-            dash_task.cancel()
+    with _signal_handlers(loop, eng.request_stop):
+        if not use_dashboard:
+            await eng.run()
+            return
+        from entropy_arb.dashboard import Dashboard
+        dash = Dashboard(eng, log_buffer, cfg.log_file,
+                         force_terminal=force_tty, lang=lang)
+        dash_task = asyncio.create_task(dash.run(), name="dashboard")
+        try:
+            await eng.run()
+        finally:
+            eng.request_stop()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(dash_task, timeout=5)
+            if not dash_task.done():
+                dash_task.cancel()
 
 
 def main() -> None:
