@@ -1,0 +1,5 @@
+[
+  {"id":"A","event_time":"2026-01-01T10:00:00Z","received_time":"2026-01-01T10:00:01Z","price":"100.00"},
+  {"id":"B","event_time":"2026-01-01T10:00:02Z","received_time":"2026-01-01T10:00:07Z","price":"110.00"},
+  {"id":"C","event_time":"2026-01-01T10:00:04Z","received_time":"2026-01-01T10:00:05Z","price":"102.00"}
+]

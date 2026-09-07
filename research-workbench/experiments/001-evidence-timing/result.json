@@ -1,0 +1,29 @@
+{
+  "synthetic_data": true,
+  "input_sha256": "464ee6d02e074c042a5d489f52f7cb36a8f8e0822413b3c3e8168a2fa0db5e97",
+  "python": "3.13.5",
+  "run_at_utc": "2026-09-07T14:49:38.069234+00:00",
+  "decisions": {
+    "early": "2026-01-01T10:00:04.500Z",
+    "late": "2026-01-01T10:00:07.500Z"
+  },
+  "results": {
+    "early_hindsight": {
+      "event_id": "C",
+      "price": "102.00"
+    },
+    "early_available": {
+      "event_id": "A",
+      "price": "100.00"
+    },
+    "late_last_arrival": {
+      "event_id": "B",
+      "price": "110.00"
+    },
+    "late_latest_available": {
+      "event_id": "C",
+      "price": "102.00"
+    }
+  },
+  "checks_passed": 4
+}
