@@ -9,7 +9,7 @@
 npm ci
 npm run crawl -- "https://x.com/Web3Feng/status/2097002992755183901"
 ```
-可以从任意目录运行 node 加 crawler/cli.mjs 的绝对路径。Python 仅作为现有 SQLite 工作台的桥接进程，由 JS 启动；需要指定解释器时设置 RESEARCH_PYTHON 为可执行文件路径。
+可以从任意目录运行 node 加 crawler/cli.mjs 的绝对路径。Python 作为数据库工作台的桥接进程，由 JS 启动；需要指定解释器时设置 RESEARCH_PYTHON 为可执行文件路径。本机已切换 PostgreSQL，配置在 data/local/；SQLite 兼容后端保留。连接故障会报错，不自动改写旧 SQLite。
 ```powershell
 npm run crawl -- "https://example.org/article-a" "https://example.org/article-b"
 npm run crawl -- --file urls.txt
@@ -35,6 +35,7 @@ URL 去掉片段、utm 等追踪参数；X 分享链接转换为统一帖子地�
 
 X 适配不会抓取完整线程、全部评论或图片文字；镜像返回的媒体及引用帖字段仅保存为辅助资料。正文提取可能遗漏表格或图片，涉及结算规则时必须对照原文。HTTP 成功不等于有效正文，已识别的挑战页面不会入库为新闻。
 ## 数据与入库
+PostgreSQL 模式下，正文版本、观察记录、任务事件和研究结论分开管理；新抓取的请求与重试事件也会入库。内容相同的观察复用正文版本；旧版本不可原地覆盖。原始文件另存入 data/artifacts 的内容寻址副本，数据库登记位置与哈希。历史案例中的未核实 URL 保持未解析引用，不自动绑定今天才抓取的正文。崩溃发生在回执落盘之前时，当前版本无法恢复全部中途请求事件；尚未实现分布式任务调度。
 data/crawl/raw 保存 Crawlee 返回的正文响应；HTML 可能经过字符解码与重新编码，不是网络逐字节录包。data/crawl/documents 保存带原地址、实际读取地址、采集时间、作者、来源发布时间、正文、Markdown、证据类型与警示的 JSON。原始响应和文档文件按 SHA256 命名；历史版本保留，cache 只指向最近成功版本。
 data/crawl/runs 保存每次回执，包含失败原因；所有这些文件沿用 data/ 的 Git 排除规则。缓存命中保留原采集时间，不伪装成新抓取。此次尝试时间和最近成功时间在数据库分开记录。
 已有收件箱条目按 URL 关联，保留标题、人工分析与审阅状态；新 URL 才创建待研究条目。收件箱摘要不是全文，最新正文路径见日报的“单链接正文采集”。后续正文变化保存新文档，旧摘要不自动覆盖；这不是自动分析或交易信号。

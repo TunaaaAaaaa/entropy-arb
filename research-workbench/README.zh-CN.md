@@ -1,5 +1,11 @@
 ## Crypto 机制研究工作台
 版本：2026-09-07。默认学习安排：每天 60–90 分钟，每周一次 2 小时研究；按交付物调整速度。
+数据库更新（2026-09-08）：本机已切换 PostgreSQL 18.6，数据库名 entropy_research_live；原 SQLite 保留为迁移前记录。当前连接与后端选择在 data/local/，凭据不进入 Git。新克隆不会自动连接本机数据库，需按迁移计划配置和导入。
+JS 入口：npm run workbench -- inbox / collect / report；npm run crawl -- URL。运行前确保 Docker Desktop 已启动，必要时在本目录运行 npm run db:up。数据库状态使用 npm run db -- status。
+研究查询：npm run db -- search "赎回"；读取具体正文版本：npm run db -- document 1；版本对比：npm run db -- diff 1 2（须属于同一文档）。检索结果当前返回位置数组，文档字段顺序为版本 ID、URL、标题、证据类型、发布时间、正文片段；案例字段为记录 ID、版本 ID、标题、状态。
+保存案例/假设：npm run db -- save-record hypothesis:example hypotheses/example.md --kind hypothesis --status draft。文件必须位于项目内；重复相同内容不新增版本。关联证据：npm run db -- link 研究版本ID 正文版本ID --relation supports（或 refutes/background）；关联实验：npm run db -- link-experiment 研究版本ID 实验ID。Markdown 为编辑输入/导出物，提交数据库版本才更新研究真源；导出使用 npm run db -- export-record case:005-web3feng-ai-tools。
+当前备份：npm run db -- backup-pg，返回备份目录；随后 npm run db -- restore-pg 备份目录，在独立数据库与目录校验恢复。数据库文件与证据文件必须一起保全。本版本备份命令面向本地 Compose PostgreSQL；云端连接需要更换 pg_dump 执行方式。npm run db -- backup 仅备份保留的旧 SQLite，不备份当前 PostgreSQL。
+备份和恢复副本目前仍在本机，未设置异地备份或后台任务。Docker 卷不是异地备份。切换后禁止直接改回旧 SQLite 来“回退”，这会遗漏新写入；优先备份当前 PostgreSQL，再恢复至独立 PostgreSQL 验证。旧 SQLite 增量回放目前没有自动化命令。
 目标：把人物复盘、规则变化和公开数据转化成可证伪的机制假设，积累案例、工具与失败经验。先研究一个狭窄领域：跨系统报价与结算差异；授权安全研究作为后续分支。
 这是一套可运行的研究起步系统。信息采集、去重、来源健康、人工筛选和报告已由本地 CLI 承担；经济判断、历史资料补全和实验仍需研究者完成。它没有交易执行器，也没有后台调度或消息推送。
 ## 先看这几个文件
@@ -45,7 +51,7 @@
 实验分两条路径：公开经济规则使用历史数据、账本与仿真验证；涉及越权或资产安全的问题，仅在明确授权范围与隔离环境中验证，并按对应披露流程处理。真实协议调用成功并不证明操作得到授权。
 新机会的模板与历史案例分开。历史标签不能自动成为当前信号；实验结果也不能自行触发交易。资金、账号、协议授权与结算条件要在每次实际使用时单独复核。
 ## 运行本地工具
-在项目目录 D:\Projects\entropy-arb 中使用已安装的 Python。工具仅依赖标准库，不需要钱包或交易密钥。
+以下保留 Python 底层命令作为接口参考；本地日常使用上面的 JS/npm 入口。SQLite 后端仅依赖标准库，PostgreSQL 后端另需 requirements-db.txt 中的 psycopg。均不需要钱包或交易密钥。
 ```powershell
 python research-workbench/workbench.py init
 python research-workbench/workbench.py collect
@@ -63,7 +69,7 @@ python research-workbench/workbench.py review 12 --status shortlist --note "需�
 python research-workbench/workbench.py review 12 --status archive --note "只描述已有服务报酬，未证明额外优势"
 python research-workbench/workbench.py report
 ```
-报告位于 reports/latest.md；本地状态位于 data/research.db；成功解析的 feed/page 原始响应按 SHA-256 存入 data/snapshots。feed 快照不等于已抓取其链接的所有文章全文。init 不清空已有状态。要备份时先结束正在写库的命令，再复制整个工作台；模板、案例与来源配置可以版本管理，data 和 reports 默认不进入 Git。不要在资料库保存密钥、会话 cookie 或私人账户凭证。
+报告位于 reports/latest.md；业务状态存入当前选定数据库，data/research.db 是保留的 SQLite 文件。成功解析的 feed/page 响应按 SHA-256 存入 data/snapshots；feed 快照不等于文章全文。init 不清空已有状态，PostgreSQL 建表使用显式 migrate。当前数据库请按上方 backup-pg 流程备份；复制工作目录不会包含 Docker 卷内的 PostgreSQL。data 和 reports 默认不进入 Git，不在研究资料中保存钱包密钥、会话 cookie 或私人账户凭证。
 ## 从 shortlist 接到实验文件
 假设你选中一条线索，先复制模板，填入真实 inbox ID 和关联案例。以下文件名是示例，已有同名文件时换新编号，避免覆盖历史笔记。
 ```powershell
