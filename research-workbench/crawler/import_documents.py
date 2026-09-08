@@ -12,6 +12,10 @@ def import_run(root, run):
     receipts = []
     with closing(connect(root)) as db:
         with db:
+            if hasattr(db, 'raw'):
+                db.lock('run:' + run['id'])
+                if db.raw.execute('SELECT 1 FROM ops.crawl_jobs WHERE id=%s', (run['id'],)).fetchone():
+                    return [{'status': 'already_imported', 'run_id': run['id']}]
             db.execute("""INSERT OR IGNORE INTO sources(id,name,kind,url,enabled)
                           VALUES('manual-user','人工录入','manual','',1)""")
             for result in run['results']:
@@ -19,7 +23,8 @@ def import_run(root, run):
                 if status == 'failed':
                     db.execute("""INSERT INTO crawled_documents(url,last_attempt,status,error)
                                   VALUES(?,?,?,?) ON CONFLICT(url) DO UPDATE SET
-                                  last_attempt=excluded.last_attempt,status=excluded.status,error=excluded.error""",
+                                  last_attempt=excluded.last_attempt,status=excluded.status,error=excluded.error
+                                  WHERE crawled_documents.last_attempt <= excluded.last_attempt""",
                                (url, run['at'], status, clean_text(result['error'], html=False)))
                     receipts.append({'url': url, 'status': status, 'error': result['error']})
                     continue
@@ -38,11 +43,15 @@ def import_run(root, run):
                               VALUES(?,?,?,?,?,?,?,NULL) ON CONFLICT(url) DO UPDATE SET
                               item_id=excluded.item_id,last_attempt=excluded.last_attempt,
                               fetched_at=excluded.fetched_at,document_path=excluded.document_path,
-                              provenance=excluded.provenance,status=excluded.status,error=NULL""",
+                              provenance=excluded.provenance,status=excluded.status,error=NULL
+                              WHERE crawled_documents.last_attempt <= excluded.last_attempt""",
                            (url, item_id, run['at'], doc['fetched_at'], doc['document_path'], doc['provenance'], status))
                 receipts.append({'url': url, 'status': status, 'item_id': item_id, 'change': change,
                                  'title': doc['title'], 'characters': len(doc['text']),
                                  'document_path': doc['document_path'], 'warnings': doc['warnings']})
+            if hasattr(db, 'raw'):
+                from db.evidence import ingest_run
+                ingest_run(db.raw, root, run)
         report(db, root)
     return receipts
 
@@ -54,10 +63,10 @@ if __name__ == '__main__':
         if not 1 <= limit <= 50:
             raise ValueError('inbox-limit must be 1..50')
         with closing(connect(root)) as db:
-            urls = [row[0] for row in db.execute("""SELECT DISTINCT i.url FROM items i
+            urls = [row[0] for row in db.execute("""SELECT i.url FROM items i
                 LEFT JOIN crawled_documents d ON d.url=i.url
                 WHERE i.baseline=0 AND i.status IN ('new','shortlist')
-                AND d.document_path IS NULL ORDER BY i.updated_at DESC LIMIT ?""", (limit,))]
+                AND d.document_path IS NULL GROUP BY i.url ORDER BY MAX(i.updated_at) DESC LIMIT ?""", (limit,))]
         print(json.dumps(urls))
     else:
         print(json.dumps(import_run(root, json.load(sys.stdin)), ensure_ascii=False, indent=2))

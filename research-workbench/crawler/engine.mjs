@@ -60,6 +60,9 @@ export async function crawlUrls(inputs, { root, force = false, ttlHours = 24 } =
   const fd = fs.openSync(lock, 'wx');
   fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
   const results = [];
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const attempts = [];
   try {
     const pending = [];
     const seen = new Set();
@@ -83,6 +86,8 @@ export async function crawlUrls(inputs, { root, force = false, ttlHours = 24 } =
         httpClient: new BoundedHttpClient(),
         additionalMimeTypes: ['application/json'],
         preNavigationHooks: [async (_ctx, options) => {
+          attempts.push({ id: randomUUID(), at: new Date().toISOString(), url: _ctx.request.userData.original,
+            status: 'request-started', retry: _ctx.request.retryCount });
           options.headers = { ...options.headers, 'User-Agent': 'EntropyResearch/1.0 (public-document-research)' };
           options.retry = { limit: 0 };
         }],
@@ -96,14 +101,21 @@ export async function crawlUrls(inputs, { root, force = false, ttlHours = 24 } =
           const content = adapter === 'fxtwitter' ? extractPost(text, original) : extractArticle(text, request.loadedUrl || request.url);
           const document = writeEvidence(root, original, request.loadedUrl || request.url, payload, content, response.statusCode);
           results.push({ status: 'fetched', url: original, document });
+          attempts.push({ id: randomUUID(), at: new Date().toISOString(), url: original, status: 'request-succeeded' });
+        },
+        async errorHandler({ request }, error) {
+          attempts.push({ id: randomUUID(), at: new Date().toISOString(), url: request.userData.original,
+            status: 'request-error', error: error.message.slice(0, 1000), retry: request.retryCount });
         },
         async failedRequestHandler({ request }, error) {
+          attempts.push({ id: randomUUID(), at: new Date().toISOString(), url: request.userData.original,
+            status: 'request-failed', error: error.message.slice(0, 1000), retry: request.retryCount });
           results.push({ status: 'failed', url: request.userData.original, error: error.message.slice(0, 1000) });
         },
       }, new Configuration({ persistStorage: false, purgeOnStart: true, logLevel: 'OFF' }));
       await crawler.run(pending);
     }
-    const run = { id: randomUUID(), at: new Date().toISOString(), results };
+    const run = { id: runId, started_at: startedAt, at: new Date().toISOString(), attempts, results };
     const dir = path.join(root, 'data/crawl/runs'); fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, run.id + '.json'), JSON.stringify(run, null, 2));
     return run;

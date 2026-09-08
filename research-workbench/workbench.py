@@ -308,6 +308,10 @@ def save_snapshot(db, source_id, payload, charset, observed_at):
         raise ValueError(f"existing snapshot has been altered: {relative.as_posix()}")
     db.execute("""INSERT INTO source_fetches(source_id,observed_at,content_hash,relative_path,charset)
                 VALUES(?,?,?,?,?)""", (source_id, observed_at, digest, relative.as_posix(), charset))
+    if hasattr(db, 'raw'):
+        from db.evidence import ingest_feed
+        from uuid import uuid4
+        ingest_feed(db.raw, root, source_id, digest, relative.as_posix(), observed_at, 'feed:' + str(uuid4()))
 
 
 def collect(db, sources, *, force=False, fetcher=fetch, now=None):
