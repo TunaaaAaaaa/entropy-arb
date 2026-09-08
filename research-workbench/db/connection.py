@@ -82,7 +82,7 @@ class PgConnection:
         returning = bool(re.match(r'\s*INSERT INTO ops.inbox_items\(', sql)) and 'RETURNING' not in sql
         if returning:
             sql += ' RETURNING id'
-        return Cursor(self.raw.execute(sql, parameters), returning)
+        return Cursor(self.raw.execute(sql, tuple(int(v) if isinstance(v, bool) else v for v in parameters)), returning)
     def lock(self, identity):
         self.raw.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,0))', (identity,))
     def commit(self):
