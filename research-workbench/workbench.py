@@ -511,7 +511,7 @@ def main(argv=None):
     try:
         with closing(connect(root)) as db:
             if args.command == "init":
-                print(f"Initialized: {root / 'data' / 'research.db'}")
+                print('Connected to PostgreSQL; schema changes require npm run db -- migrate' if hasattr(db,'raw') else f"Initialized: {root / 'data' / 'research.db'}")
             elif args.command == "collect":
                 outcomes = collect(db, load_sources(root), force=args.force)
                 for outcome in outcomes:

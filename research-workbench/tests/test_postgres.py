@@ -25,6 +25,8 @@ from db.import_legacy import import_legacy
 @unittest.skipUnless(os.environ.get('RUN_POSTGRES_TESTS')=='1','set RUN_POSTGRES_TESTS=1 for isolated PostgreSQL tests')
 class PostgresTests(unittest.TestCase):
     def setUp(self):
+        if os.environ.get('RESEARCH_DATABASE_URL'):
+            self.skipTest('Use npm run test:db with local isolated database configuration')
         self.name='entropy_test_'+uuid4().hex[:12]
         self.admin=raw_connect(ROOT);self.admin.autocommit=True
         self.admin.execute('CREATE DATABASE '+self.name)
@@ -35,6 +37,8 @@ class PostgresTests(unittest.TestCase):
         (self.root/'data/local/postgres.json').write_text(json.dumps(config))
         (self.root/'data/local/backend.json').write_text('{"backend":"postgres"}')
         (self.root/'sources.json').write_text('{"version":1,"sources":[]}')
+        with raw_connect(self.root) as check:
+            self.assertEqual(check.info.dbname,self.name)
         migrate(self.root)
 
     def tearDown(self):
@@ -136,3 +140,20 @@ class PostgresTests(unittest.TestCase):
             self.assertEqual(conn.execute('SELECT count(*) FROM evidence.inbox_document_links').fetchone()[0],2)
             latest=conn.execute('SELECT status,document_path FROM ops.crawled_documents').fetchone()
             self.assertEqual(latest[0],'failed');self.assertIsNotNone(latest[1])
+
+    def test_import_failure_rolls_back_all_legacy_rows(self):
+        db=sqlite3.connect(self.root/'data/research.db');db.row_factory=sqlite3.Row;db.executescript(SCHEMA)
+        add_item(db,'old','https://example.com/old','note')
+        db.execute("INSERT INTO source_fetches(source_id,observed_at,content_hash,relative_path,charset) VALUES(?,?,?,?,?)",
+                   ('manual-user','2026-09-08T00:00:00Z','a'*64,'data/snapshots/missing.bin','utf8'))
+        db.commit();db.close()
+        with self.assertRaises(FileNotFoundError): import_legacy(self.root)
+        with raw_connect(self.root) as conn:
+            self.assertEqual(conn.execute('SELECT count(*) FROM ops.inbox_items').fetchone()[0],0)
+            self.assertEqual(conn.execute('SELECT count(*) FROM ops.migration_runs').fetchone()[0],0)
+
+    def test_connection_failure_does_not_fall_back_to_sqlite(self):
+        file=self.root/'data/local/postgres.json';config=json.loads(file.read_text());config['port']=1;file.write_text(json.dumps(config))
+        from workbench import connect
+        with self.assertRaisesRegex(ValueError,'Cannot connect to PostgreSQL'): connect(self.root)
+        self.assertFalse((self.root/'data/research.db').exists())

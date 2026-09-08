@@ -40,7 +40,7 @@ def backend(root):
 class Row:
     def __init__(self, names, values):
         self.names = names
-        self.values = tuple(v.isoformat(timespec='seconds') if isinstance(v, datetime) else v for v in values)
+        self.values = tuple(v.isoformat() if isinstance(v, datetime) else v for v in values)
     def keys(self):
         return self.names
     def __getitem__(self, key):

@@ -13,6 +13,7 @@ def save_record(conn, root, identity, kind, file, status='draft'):
     artifact=register_artifact(conn,root,file)
     title=next((s.lstrip('# ').strip() for s in body.splitlines() if s.strip()),identity)
     conn.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,0))',('record:'+identity,))
+    previous=conn.execute('SELECT status,current_version_id FROM research.records WHERE id=%s',(identity,)).fetchone()
     conn.execute('''INSERT INTO research.records(id,kind,title,status) VALUES(%s,%s,%s,%s)
                     ON CONFLICT(id) DO UPDATE SET title=excluded.title,status=excluded.status''',(identity,kind,title,status))
     actual_kind=conn.execute('SELECT kind FROM research.records WHERE id=%s',(identity,)).fetchone()[0]
@@ -22,6 +23,9 @@ def save_record(conn, root, identity, kind, file, status='draft'):
                     VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING''',(identity,body,artifact,Jsonb({'source_artifact':artifact,'imported_file':file.relative_to(Path(root).parent).as_posix()})))
     vid=conn.execute('SELECT id FROM research.record_versions WHERE record_id=%s AND content_hash=%s',(identity,artifact)).fetchone()[0]
     conn.execute('UPDATE research.records SET current_version_id=%s WHERE id=%s',(vid,identity))
+    if previous is None or previous!=(status,vid):
+        conn.execute('INSERT INTO research.record_events(record_id,version_id,previous_status,status) VALUES(%s,%s,%s,%s)',
+                     (identity,vid,previous[0] if previous else None,status))
     for url in set(re.findall(r'https?://[^\s<>\)\]`"，；、]+',body)):
         # Importing old prose cannot establish which version its author saw.
         conn.execute('''INSERT INTO research.evidence_links(record_version_id,unresolved_url,relation)
@@ -73,7 +77,10 @@ def query(conn, text):
     links=conn.execute('''SELECT l.record_version_id,l.document_version_id,l.unresolved_url,l.relation
                          FROM research.evidence_links l JOIN research.record_versions v ON v.id=l.record_version_id
                          WHERE v.body ILIKE %s ORDER BY l.id LIMIT 100''',(pattern,)).fetchall()
-    return {'document_versions':docs,'research_records':records,'evidence_links':links}
+    experiments=conn.execute('''SELECT l.record_version_id,l.experiment_id,e.dataset_id,e.metadata
+        FROM research.experiment_links l JOIN research.record_versions v ON v.id=l.record_version_id
+        JOIN research.experiment_runs e ON e.id=l.experiment_id WHERE v.body ILIKE %s LIMIT 30''',(pattern,)).fetchall()
+    return {'document_versions':docs,'research_records':records,'evidence_links':links,'experiment_links':experiments}
 
 
 def link(conn, record_version, document_version, relation):
