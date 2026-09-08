@@ -5,6 +5,9 @@
   "type": "module",
   "engines": { "node": ">=22" },
   "scripts": {
+    "db": "node db/cli.mjs",
+    "db:setup": "node db/setup.mjs",
+    "db:up": "docker compose up -d --wait postgres",
     "crawl": "node crawler/cli.mjs",
     "test": "node --test crawler/tests/*.test.mjs",
     "workbench": "node crawler/workbench.mjs"
