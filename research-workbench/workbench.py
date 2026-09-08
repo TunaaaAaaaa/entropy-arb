@@ -9,6 +9,7 @@ from email.utils import parsedate_to_datetime
 from hashlib import sha256
 from html.parser import HTMLParser
 import json
+import os
 from pathlib import Path
 import re
 import sqlite3
@@ -70,6 +71,13 @@ def connect(root):
     root = Path(root).resolve()
     (root / "data").mkdir(parents=True, exist_ok=True)
     (root / "reports").mkdir(parents=True, exist_ok=True)
+    config = root / 'data/local/backend.json'
+    choice = os.environ.get('RESEARCH_BACKEND') or (json.loads(config.read_text())['backend'] if config.exists() else 'sqlite')
+    if choice == 'postgres':
+        from db.connection import PgConnection
+        return PgConnection(root)
+    if choice != 'sqlite':
+        raise ValueError('Unknown research backend')
     db = sqlite3.connect(root / "data" / "research.db")
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys=ON")
@@ -253,6 +261,8 @@ def sync_sources(db, sources):
 
 
 def save_item(db, source, entry, observed_at, baseline=False):
+    if hasattr(db, 'lock'):
+        db.lock(source['id'] + ':' + entry['identity'])
     packed = json.dumps({k: entry.get(k) for k in ("title", "url", "published_at", "summary")},
                         ensure_ascii=False, sort_keys=True)
     digest = sha256(packed.encode()).hexdigest()
@@ -282,8 +292,11 @@ def save_item(db, source, entry, observed_at, baseline=False):
 
 def save_snapshot(db, source_id, payload, charset, observed_at):
     digest = sha256(payload).hexdigest()
-    db_file = next(row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main")
-    root = Path(db_file).resolve().parent.parent
+    if hasattr(db, 'root'):
+        root = db.root
+    else:
+        db_file = next(row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main")
+        root = Path(db_file).resolve().parent.parent
     relative = Path("data") / "snapshots" / (digest + ".bin")
     destination = root / relative
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -363,6 +376,8 @@ def review_item(db, item_id, status, note=None, now=None):
     if status not in {"new", "shortlist", "archive"}:
         raise ValueError("invalid review status")
     now = now or utcnow()
+    if hasattr(db, 'lock'):
+        db.lock('review:' + str(item_id))
     row = db.execute("SELECT status,review_note FROM items WHERE id=?", (item_id,)).fetchone()
     if not row:
         raise ValueError(f"item {item_id} does not exist")
