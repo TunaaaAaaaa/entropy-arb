@@ -1,0 +1,19 @@
+{
+  "name": "entropy-research-workbench",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "crawl": "node crawler/cli.mjs",
+    "test": "node --test crawler/tests/*.test.mjs",
+    "workbench": "node crawler/workbench.mjs"
+  },
+  "dependencies": {
+    "@crawlee/cheerio": "3.18.1",
+    "@crawlee/core": "3.18.1",
+    "@mozilla/readability": "0.6.0",
+    "linkedom": "0.18.13",
+    "turndown": "7.2.4"
+  }
+}

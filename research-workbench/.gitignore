@@ -2,3 +2,5 @@ data/
 reports/
 __pycache__/
 tests/__pycache__/
+node_modules/
+storage/

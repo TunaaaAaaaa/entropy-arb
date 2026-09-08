@@ -54,6 +54,11 @@ CREATE TABLE IF NOT EXISTS source_fetches (
  observed_at TEXT NOT NULL, content_hash TEXT NOT NULL,
  relative_path TEXT NOT NULL, charset TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS crawled_documents (
+ url TEXT PRIMARY KEY, item_id INTEGER REFERENCES items(id),
+ last_attempt TEXT NOT NULL, fetched_at TEXT, document_path TEXT,
+ provenance TEXT, status TEXT NOT NULL, error TEXT
+);
 """
 
 
@@ -446,6 +451,15 @@ def report(db, root, now=None):
                   f"人工笔记：{md(row['review_note'],1500) or '待填写：错误假设、收益来源、可反证条件、结算路径。'}"]
     changes = db.execute("""SELECT r.*,i.status FROM revisions r JOIN items i ON i.id=r.item_id
                             WHERE r.change_kind='changed' ORDER BY r.id DESC LIMIT 30""").fetchall()
+    lines.append("## 单链接正文采集")
+    documents = db.execute("SELECT * FROM crawled_documents ORDER BY last_attempt DESC LIMIT 50").fetchall()
+    for doc in documents:
+        lines.append(f"- {md_link(doc['url'], doc['url'])}；条目：{doc['item_id'] or '未入库'}；"
+                     f"状态：{md(doc['status'])}；最近尝试：{md(doc['last_attempt'])}；"
+                     f"正文采集：{md(doc['fetched_at'] or '无')}；证据：{md(doc['provenance'] or '未知')}；"
+                     f"文件：{md(doc['document_path'] or '无')}；错误：{md(doc['error'] or '无')}。")
+    if not documents:
+        lines.append("尚无单链接正文采集；使用 npm run crawl -- URL。")
     lines.append("## 最近内容修订（含已归档条目）")
     lines += [f"- [{r['item_id']}] {md(r['title'],300)}；{md(r['observed_at'])}；保留状态：{r['status']}；修订号：{r['id']}。" for r in changes] or ["暂无非基线修订。"]
     path = Path(root).resolve() / "reports" / "latest.md"
