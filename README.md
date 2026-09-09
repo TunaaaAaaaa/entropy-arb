@@ -2,7 +2,86 @@
 
 **[中文文档 / Chinese documentation → README.zh-CN.md](README.zh-CN.md)**
 
-Open-source two-venue perp arbitrage bot. One leg is always **Entropy**
+This fork combines a **crypto mechanism research workbench** with the original two-venue perpetual arbitrage engine. The workbench collects public information, preserves evidence, tracks case studies and hypotheses, and links research to reproducible experiments. Its collection commands do not call an LLM or place trades.
+
+## Research workbench
+
+The workflow is: **collect → review → fetch full text → form a hypothesis → test → record evidence and conclusions**. Feed/page monitoring, URL crawling, deduplication, review states, reports, and versioned PostgreSQL storage are implemented. Scheduling, notifications, off-site backups, and automatic research-to-trade execution are not configured.
+
+| Guide | Contents |
+|---|---|
+| [Workbench guide](research-workbench/README.zh-CN.md) | Daily workflow, case studies, and research templates |
+| [Crawler guide](research-workbench/CRAWLER.zh-CN.md) | URL ingestion, cache behavior, extraction, and limitations |
+| [Storage and migration](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md) | PostgreSQL migration, verification, and recovery |
+| [Sources](research-workbench/SOURCES.zh-CN.md) / [configuration](research-workbench/sources.json) | Collection sources and manual reading lists |
+| [Technical roadmap](research-workbench/TECH-ROADMAP.zh-CN.md) | Skills and experiments to develop incrementally |
+
+The detailed guides above are currently in Chinese.
+
+### Setup and daily use
+
+Use the **Node.js/npm entry points** locally. Node.js 22+ and Python 3.11+ are required; the JS launchers invoke the Python storage/workbench code. Set `RESEARCH_PYTHON` if the interpreter is not available as `python`.
+
+```powershell
+git clone https://github.com/TunaaaAaaaa/entropy-arb.git
+cd entropy-arb/research-workbench
+npm ci
+python -m pip install -r requirements-db.txt
+```
+
+A fresh checkout contains no private database, credentials, or collected history. For an initial SQLite workspace, run `npm run workbench -- init`. The already migrated local installation uses PostgreSQL (`entropy_research_live`); start Docker Desktop and run `npm run db:up` before using it. All following npm commands run from `research-workbench/`.
+
+```powershell
+npm run workbench -- collect
+npm run workbench -- inbox
+npm run crawl -- https://x.com/Web3Feng/status/2097002992755183901
+npm run workbench -- report
+```
+
+The first collection establishes a baseline; use `inbox --include-baseline` to see historical entries. Source cadence controls which sources are due during a run; it does not schedule future runs. Crawling uses Crawlee/Cheerio, saves full-text evidence and content hashes, and reuses valid cached content unless `--force` is supplied. Individual X posts use a labeled third-party provider. Login-only pages, browser-rendered content, complete account timelines, and image OCR are not supported.
+
+To provision PostgreSQL on a new machine, run `npm run db:setup`, `npm run db:up`, and `npm run db -- migrate`. These prepare the database; they do **not** migrate existing data or select the backend. Follow the [migration guide](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md) to import legacy/research records, back up, verify an isolated restore, and activate PostgreSQL.
+
+With PostgreSQL configured:
+
+```powershell
+npm run db -- status
+npm run db -- search "Lido"
+npm run db -- backup-pg
+# Replace BACKUP_DIRECTORY with the directory returned by backup-pg.
+npm run db -- restore-pg BACKUP_DIRECTORY
+```
+
+Use `document VERSION_ID` to read evidence, `diff LEFT_VERSION_ID RIGHT_VERSION_ID` to compare versions of the same document, and `save-record RECORD_ID FILE --kind hypothesis --status draft` to save a research revision. `link RECORD_VERSION_ID DOCUMENT_VERSION_ID --relation supports` connects a research revision to evidence; `refutes` and `background` are also supported. Markdown edits must be saved through `save-record` to update the database; `export-record RECORD_ID` exports the current revision.
+
+### Data and recovery
+
+| Data | Storage |
+|---|---|
+| Current sources, inbox, reviews, and collection state | PostgreSQL `ops` schema |
+| Document versions, observations, hashes, and evidence references | PostgreSQL `evidence` schema |
+| Cases, hypotheses, revision history, datasets, and experiment links | PostgreSQL `research` schema |
+| Raw responses, extracted documents, snapshots, and immutable file copies | `research-workbench/data/`, referenced from the database |
+| Editable research and experiment inputs | `research-workbench/cases/`, `hypotheses/`, and `experiments/` |
+| Quote CSVs and generated reports | `logs/` and `research-workbench/reports/` |
+| Local connection/backend settings and backups | `research-workbench/data/local/` and `data/pg-backups/` |
+
+Business state and historical evidence are separated by schema and versioned records within one PostgreSQL database. Large evidence files remain on disk. Back up **both the database and its referenced files**. Runtime data, credentials, reports, and backups are excluded from Git; pushing the repository does not upload them.
+
+`backup-pg` currently targets the local Docker Compose database. `restore-pg` restores into an isolated database and verifies table contents and files. Backups remain local; a Docker volume is not an off-site backup. Cloud deployment still needs persistent storage, an off-site backup policy, and adapted backup execution. The retained `data/research.db` is the old SQLite snapshot: `backup` only backs up SQLite, and switching back to it after PostgreSQL writes would omit newer data.
+
+### Verification
+
+```powershell
+npm test
+npm run test:db
+```
+
+The crawler tests exercise extraction, caching, and failures. Database tests include PostgreSQL integration tests using isolated test databases; they require a running, configured PostgreSQL instance and a database role allowed to create test databases.
+
+## Original trading module
+
+The original engine remains available separately. One leg is always **Entropy**
 (the `io` builder dex on Hyperliquid); the other leg — the hedge — is one of:
 
 | `--hedge` | venue | quote | taker fee | protocol |
@@ -53,8 +132,9 @@ midline − lower  ────────────────────�
 
 Both hurdles are applied to **executable** prices (entropy bid vs hedge ask,
 and vice versa) and are **net of both venues' taker fees** — the engine adds
-fees on top before a slice qualifies. A full round trip therefore nets
-**≥ upper + lower bps after fees by construction**.
+fees on top before a slice qualifies. The quoted round-trip edge targets
+**≥ upper + lower bps after configured taker fees**; realized profit is not
+guaranteed and also depends on fills, slippage, funding, and execution failures.
 
 One consequence worth understanding: with `midline_bps: 5`, the buy-entropy
 hurdle is `lower − midline`, which can be **negative**. That is intentional —
@@ -65,10 +145,10 @@ money**: if you type `midline_bps: 5` while the true premium sits at 0, the
 bot happily buys entropy at fair value all day. Measure first, then trade —
 that is what the recorder and analyzer are for.
 
-## Quick start
+## Trading module quick start
 
 ```bash
-git clone https://github.com/your-quantguy/entropy-arb.git && cd entropy-arb
+git clone https://github.com/TunaaaAaaaa/entropy-arb.git && cd entropy-arb
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # data collection needs only this
 
@@ -204,6 +284,9 @@ errors), credentials in `.env`, and the markets on the command line
 ## Layout
 
 ```
+research-workbench/      research CLI, crawler, case studies, and experiments
+research-workbench/db/   PostgreSQL migrations, import, backup, and recovery
+research-workbench/data/ local evidence, settings, and backups (Git-ignored)
 main.py                  entry point (--record-only, or live by default)
 entropy_arb/config.py    YAML + .env contract, validation
 entropy_arb/book.py      order books + fee-aware crossing/sizing math

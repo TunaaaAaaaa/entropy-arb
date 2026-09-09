@@ -2,7 +2,84 @@
 
 **[English documentation / 英文文档 → README.md](README.md)**
 
-开源双交易所永续合约套利机器人。其中一条腿永远是 **Entropy**（Hyperliquid 上的
+本分支包含 **Crypto 机制研究工作台**和原有双交易所永续合约套利引擎。工作台用于采集公开信息、保存证据、管理案例和假设，并关联可重复的实验。采集命令不调用大模型，也不下单。
+
+## 研究工作台
+
+工作流程：**采集 → 筛选 → 抓取正文 → 提出假设 → 实验验证 → 保存证据和结论**。目前已实现 feed/page 采集、指定 URL 爬取、去重、人工筛选、报告和 PostgreSQL 版本化存储。后台调度、消息推送、异地备份和从研究自动触发交易尚未配置。
+
+| 文档 | 内容 |
+|---|---|
+| [工作台指南](research-workbench/README.zh-CN.md) | 日常流程、人物案例和研究模板 |
+| [爬虫指南](research-workbench/CRAWLER.zh-CN.md) | 指定链接采集、缓存、正文提取与限制 |
+| [存储与迁移](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md) | PostgreSQL 迁移、校验和恢复 |
+| [来源清单](research-workbench/SOURCES.zh-CN.md) / [配置](research-workbench/sources.json) | 自动采集源和人工阅读清单 |
+| [技术路线](research-workbench/TECH-ROADMAP.zh-CN.md) | 按实验逐步学习所需技术 |
+
+### 安装与日常使用
+
+本地通过 **Node.js/npm 入口**使用项目。需要 Node.js 22+ 和 Python 3.11+；JS 启动器调用底层 Python 工作台和存储代码。若解释器无法通过 `python` 调用，可设置 `RESEARCH_PYTHON`。
+
+```powershell
+git clone https://github.com/TunaaaAaaaa/entropy-arb.git
+cd entropy-arb/research-workbench
+npm ci
+python -m pip install -r requirements-db.txt
+```
+
+新克隆不包含私人数据库、凭据和已采集历史。首次体验 SQLite 工作区可运行 `npm run workbench -- init`。已完成迁移的本机使用 PostgreSQL（`entropy_research_live`）；使用前启动 Docker Desktop，再运行 `npm run db:up`。以下 npm 命令均在 `research-workbench/` 目录执行。
+
+```powershell
+npm run workbench -- collect
+npm run workbench -- inbox
+npm run crawl -- https://x.com/Web3Feng/status/2097002992755183901
+npm run workbench -- report
+```
+
+首次采集建立基线，通过 `inbox --include-baseline` 查看历史条目。来源频率只决定本次运行哪些来源到期，不会自动定时执行。正文爬虫使用 Crawlee/Cheerio，保存证据与内容哈希；有效缓存会被复用，需要重新抓取时加 `--force`。单条 X 帖子使用明确标注的第三方来源；暂不支持登录页面、依赖浏览器渲染的正文、完整人物时间线和图片 OCR。
+
+新机器配置 PostgreSQL 时，依次运行 `npm run db:setup`、`npm run db:up`、`npm run db -- migrate`。这些命令只准备数据库，**不会自动迁移数据或切换后端**。后续按[迁移指南](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md)导入旧数据和研究记录、备份、验证独立恢复，再激活 PostgreSQL。
+
+配置好 PostgreSQL 后：
+
+```powershell
+npm run db -- status
+npm run db -- search "赎回"
+npm run db -- backup-pg
+# 将 BACKUP_DIRECTORY 替换为 backup-pg 返回的备份目录。
+npm run db -- restore-pg BACKUP_DIRECTORY
+```
+
+使用 `document VERSION_ID` 读取证据正文，`diff LEFT_VERSION_ID RIGHT_VERSION_ID` 比较同一文档的两个版本，`save-record RECORD_ID FILE --kind hypothesis --status draft` 保存研究修订。用 `link RECORD_VERSION_ID DOCUMENT_VERSION_ID --relation supports` 关联证据，也支持 `refutes` 和 `background`。修改 Markdown 后需通过 `save-record` 保存才会更新数据库；`export-record RECORD_ID` 可导出当前版本。
+
+### 数据与恢复
+
+| 数据 | 存储位置 |
+|---|---|
+| 来源、收件箱、筛选和采集当前状态 | PostgreSQL 的 `ops` schema |
+| 正文版本、观测记录、哈希和证据引用 | PostgreSQL 的 `evidence` schema |
+| 案例、假设、修订历史、数据集和实验关联 | PostgreSQL 的 `research` schema |
+| 原始响应、提取正文、快照和不可变文件副本 | `research-workbench/data/`，数据库保存引用 |
+| 可编辑研究材料和实验输入 | `research-workbench/cases/`、`hypotheses/`、`experiments/` |
+| 行情 CSV 与生成报告 | `logs/`、`research-workbench/reports/` |
+| 本地连接、后端设置和备份 | `research-workbench/data/local/`、`data/pg-backups/` |
+
+业务状态和历史证据在同一个 PostgreSQL 数据库内按 schema 与版本记录分开管理；较大的证据文件仍放在磁盘。备份必须同时保全**数据库和引用的文件**。运行数据、凭据、报告和备份均不进入 Git，推送仓库不会上传这些内容。
+
+`backup-pg` 当前面向本地 Docker Compose 数据库；`restore-pg` 恢复到独立数据库并校验表内容和文件。备份目前仍在本机，Docker 卷不是异地备份。迁移云端还需配置持久化存储、异地备份策略并调整备份执行方式。保留的 `data/research.db` 是旧 SQLite 快照：`backup` 只备份 SQLite，PostgreSQL 已有新写入后直接切回旧库会遗漏新数据。
+
+### 验证
+
+```powershell
+npm test
+npm run test:db
+```
+
+爬虫测试覆盖正文提取、缓存和失败处理。数据库测试包含使用隔离测试库的 PostgreSQL 集成测试，需要已配置且运行中的 PostgreSQL，以及能够创建测试库的数据库角色。
+
+## 原有交易模块
+
+原有引擎仍可独立使用。其中一条腿永远是 **Entropy**（Hyperliquid 上的
 `io` builder dex）；另一条腿（对冲腿）三选一：
 
 | `--hedge` | 交易所 | 计价货币 | 吃单费 | 协议 |
@@ -48,8 +125,8 @@ midline − lower  ────────────────────�
 
 两个方向的门槛都作用于**可实际成交的价格**（Entropy 买一 对 对冲腿卖一，
 反之亦然），并且是**扣除双边吃单手续费之后的净门槛**——引擎会在阈值之上
-另行叠加手续费。因此一次完整往返扣费后**净赚 ≥ upper + lower bps**，这是
-结构上保证的。
+另行叠加手续费。报价层面的完整往返目标为**扣除配置的吃单费后价差 ≥ upper + lower bps**；
+实际盈利没有保证，还取决于成交、滑点、资金费和执行失败等因素。
 
 有一点必须理解：当 `midline_bps: 5` 时，买入 Entropy 的门槛是
 `lower − midline`，可能为**负数**。这是有意为之——如果 Entropy 长期贵 5 bps，
@@ -58,10 +135,10 @@ midline − lower  ────────────────────�
 策略**：若真实溢价中枢是 0 而你填了 5，机器人会整天以公允价买入 Entropy。
 先测量、再交易——数据采集器和分析工具就是为此而生。
 
-## 快速开始
+## 交易模块快速开始
 
 ```bash
-git clone https://github.com/your-quantguy/entropy-arb.git && cd entropy-arb
+git clone https://github.com/TunaaaAaaaa/entropy-arb.git && cd entropy-arb
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt          # 数据采集只需要这些
 
@@ -188,6 +265,9 @@ python3 main.py --symbol SNDK --hedge lighter-rh
 ## 目录结构
 
 ```
+research-workbench/      研究 CLI、爬虫、案例与实验
+research-workbench/db/   PostgreSQL 迁移、导入、备份与恢复
+research-workbench/data/ 本地证据、配置与备份（Git 忽略）
 main.py                  入口（--record-only，默认即实盘）
 entropy_arb/config.py    YAML + .env 配置契约与校验
 entropy_arb/book.py      订单簿 + 含手续费的套利规模计算
