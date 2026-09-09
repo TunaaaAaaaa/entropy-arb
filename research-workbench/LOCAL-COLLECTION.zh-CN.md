@@ -30,8 +30,10 @@
 ## 学习入口
 在 research-workbench 目录运行：
 ```powershell
+npm run db -- records --kind case
 npm run db -- search "脱锚"
 npm run db -- search "Polymarket"
+npm run db -- export-record case:009
 npm run db -- export-record case:006-0xaa-1011-depeg
 ```
 先学 006：画出资产兑换关系并列出缺失数据；再学 009：用费用与完整仓位检验表面盈利；最后回到 001，学习资金和状态管理。

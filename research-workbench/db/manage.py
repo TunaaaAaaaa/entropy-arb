@@ -21,6 +21,7 @@ def main():
     p = sub.add_parser('document'); p.add_argument('version',type=int)
     p = sub.add_parser('link-experiment'); p.add_argument('record_version',type=int); p.add_argument('experiment')
     p = sub.add_parser('search'); p.add_argument('query')
+    p = sub.add_parser('records'); p.add_argument('--kind', choices=['case','hypothesis'])
     p = sub.add_parser('save-record'); p.add_argument('id'); p.add_argument('file'); p.add_argument('--kind', choices=['case','hypothesis'], required=True); p.add_argument('--status',default='draft')
     p = sub.add_parser('export-record'); p.add_argument('id')
     p = sub.add_parser('link'); p.add_argument('record_version',type=int); p.add_argument('document_version',type=int); p.add_argument('--relation',choices=['supports','refutes','background'],required=True)
@@ -34,7 +35,7 @@ def main():
     elif args.command in ('backup-pg','restore-pg'):
         from db.pg_backup import backup_postgres,restore_postgres
         result=backup_postgres(args.root) if args.command=='backup-pg' else restore_postgres(args.root,args.path)
-    elif args.command in ('import-research','search','save-record','export-record','link','diff','document','link-experiment'):
+    elif args.command in ('import-research','search','records','save-record','export-record','link','diff','document','link-experiment'):
         from db.connection import raw_connect
         from db import research
         with raw_connect(args.root) as conn:
@@ -47,6 +48,7 @@ def main():
                 result={'linked':True}
             elif args.command=='import-research': result=research.import_research(conn,args.root)
             elif args.command=='search': result=research.query(conn,args.query)
+            elif args.command=='records': result=research.list_records(conn,args.kind)
             elif args.command=='save-record': result=research.save_record(conn,args.root,args.id,args.kind,args.file,args.status)
             elif args.command=='export-record': result=research.export_record(conn,args.root,args.id)
             elif args.command=='link': result=research.link(conn,args.record_version,args.document_version,args.relation)

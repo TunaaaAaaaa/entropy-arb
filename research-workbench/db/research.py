@@ -83,6 +83,16 @@ def query(conn, text):
     return {'document_versions':docs,'research_records':records,'evidence_links':links,'experiment_links':experiments}
 
 
+def list_records(conn, kind=None):
+    if kind:
+        rows=conn.execute('''SELECT r.id,r.kind,r.title,r.status,r.current_version_id
+                             FROM research.records r WHERE r.kind=%s ORDER BY r.id''',(kind,)).fetchall()
+    else:
+        rows=conn.execute('''SELECT r.id,r.kind,r.title,r.status,r.current_version_id
+                             FROM research.records r ORDER BY r.kind,r.id''').fetchall()
+    return [{'id':row[0],'kind':row[1],'title':row[2],'status':row[3],'version_id':row[4]} for row in rows]
+
+
 def link(conn, record_version, document_version, relation):
     conn.execute('INSERT INTO research.evidence_links(record_version_id,document_version_id,relation) VALUES(%s,%s,%s) ON CONFLICT DO NOTHING',
                  (record_version,document_version,relation))
@@ -90,12 +100,19 @@ def link(conn, record_version, document_version, relation):
 
 
 def export_record(conn,root,identity):
-    row=conn.execute('''SELECT v.id,v.body FROM research.records r JOIN research.record_versions v ON v.id=r.current_version_id WHERE r.id=%s''',(identity,)).fetchone()
-    if not row: raise ValueError('Unknown record')
+    rows=conn.execute('''SELECT r.id,v.id,v.body FROM research.records r JOIN research.record_versions v ON v.id=r.current_version_id
+                         WHERE r.id=%s OR r.id LIKE %s ESCAPE '\\' ORDER BY CASE WHEN r.id=%s THEN 0 ELSE 1 END,r.id''',
+                      (identity,identity.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')+'%',identity)).fetchall()
+    if not rows: raise ValueError(f'Unknown record: {identity}. Run `npm run db -- records` to list valid IDs.')
+    exact=[row for row in rows if row[0]==identity]
+    if not exact and len(rows)>1:
+        matches=', '.join(row[0] for row in rows[:10])
+        raise ValueError(f'Ambiguous record prefix: {identity}. Matches: {matches}')
+    resolved,row_version,body=(exact or rows)[0]
     folder=Path(root)/'data/research-exports';folder.mkdir(parents=True,exist_ok=True)
-    file=folder/(stable_hash(identity)[:16]+f'-v{row[0]}.md')
-    file.write_text(row[1],encoding='utf8')
-    return {'path':str(file),'version_id':row[0]}
+    file=folder/(stable_hash(resolved)[:16]+f'-v{row_version}.md')
+    file.write_text(body,encoding='utf8')
+    return {'id':resolved,'path':str(file),'version_id':row_version}
 
 
 def diff_versions(conn,left,right):

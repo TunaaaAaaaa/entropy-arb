@@ -2,7 +2,7 @@
 版本：2026-09-07。默认学习安排：每天 60–90 分钟，每周一次 2 小时研究；按交付物调整速度。
 数据库更新（2026-09-08）：本机已切换 PostgreSQL 18.6，数据库名 entropy_research_live；原 SQLite 保留为迁移前记录。当前连接与后端选择在 data/local/，凭据不进入 Git。新克隆不会自动连接本机数据库，需按迁移计划配置和导入。
 JS 入口：npm run workbench -- inbox / collect / report；npm run crawl -- URL。运行前确保 Docker Desktop 已启动，必要时在本目录运行 npm run db:up。数据库状态使用 npm run db -- status。
-研究查询：npm run db -- search "赎回"；读取具体正文版本：npm run db -- document 1；版本对比：npm run db -- diff 1 2（须属于同一文档）。检索结果当前返回位置数组，文档字段顺序为版本 ID、URL、标题、证据类型、发布时间、正文片段；案例字段为记录 ID、版本 ID、标题、状态。
+研究查询：不知道名称时先运行 npm run db -- records（只看案例可加 --kind case），也可用 npm run db -- search "赎回" 按关键词搜索；读取具体正文版本：npm run db -- document 1；版本对比：npm run db -- diff 1 2（须属于同一文档）。检索结果当前返回位置数组，文档字段顺序为版本 ID、URL、标题、证据类型、发布时间、正文片段；案例字段为记录 ID、版本 ID、标题、状态。导出支持唯一 ID 前缀，例如 npm run db -- export-record case:009；前缀对应多条记录时会列出冲突项并要求补全。
 保存案例/假设：npm run db -- save-record hypothesis:example hypotheses/example.md --kind hypothesis --status draft。文件必须位于项目内；重复相同内容不新增版本。关联证据：npm run db -- link 研究版本ID 正文版本ID --relation supports（或 refutes/background）；关联实验：npm run db -- link-experiment 研究版本ID 实验ID。Markdown 为编辑输入/导出物，提交数据库版本才更新研究真源；导出使用 npm run db -- export-record case:005-web3feng-ai-tools。
 当前备份：npm run db -- backup-pg，返回备份目录；随后 npm run db -- restore-pg 备份目录，在独立数据库与目录校验恢复。数据库文件与证据文件必须一起保全。本版本备份命令面向本地 Compose PostgreSQL；云端连接需要更换 pg_dump 执行方式。npm run db -- backup 仅备份保留的旧 SQLite，不备份当前 PostgreSQL。
 备份和恢复副本目前仍在本机，未设置异地备份或后台任务。Docker 卷不是异地备份。切换后禁止直接改回旧 SQLite 来“回退”，这会遗漏新写入；优先备份当前 PostgreSQL，再恢复至独立 PostgreSQL 验证。旧 SQLite 增量回放目前没有自动化命令。
