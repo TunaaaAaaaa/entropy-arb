@@ -7,4 +7,6 @@ strategy_id：crypto-news-bot；experiment_id：002-wecom-long-connection。
 2026-09-12 首次测试结果：全部 75 项通过（包含原有测试与本次新增测试）。
 ## 真实联调
 步骤见 [企业微信指南](../../WECOM.md)。依次完成认证、在目标群 @机器人取得 chat_id、发送一条测试消息，再启用新闻投递。结果保存在 data/runs/wecom-verification.json，不进入研究工作台的真实新闻证据库。
-当前本机 Bot ID、Secret 尚未填写，实际企业微信认证与群推送仍待验证。此前飞书真实联调已成功：2026-09-12 11:09（Asia/Shanghai），发送 1 条新闻、入库 1 条，第二轮重复跳过 1 条。
+2026-09-12 17:09（Asia/Shanghai）真实认证通过：使用本地 config.yaml 中的 Bot ID、Secret 运行 npm run news:wecom，企业微信返回认证成功，命令退出码为 0。随后群发现命令也通过认证；当时尚未配置 chat_id。认证检查不会发送可见消息。
+2026-09-12 17:19（Asia/Shanghai）真实主动群推送通过：将用户从群回调中取得的目标 chat_id 写入本地 config.yaml，运行 npm run news:wecom -- --send-test。仅发送 1 条带“企业微信长连接测试”字样的消息，接口返回成功回执，命令退出码为 0；本地 data/runs/wecom-verification.json 中 authenticated 和 send_confirmed 均为 true。本次没有运行 RSS 新闻推送；消息在群内的实际展示仍可由用户核对。
+此前飞书真实联调已成功：2026-09-12 11:09（Asia/Shanghai），发送 1 条新闻、入库 1 条，第二轮重复跳过 1 条。

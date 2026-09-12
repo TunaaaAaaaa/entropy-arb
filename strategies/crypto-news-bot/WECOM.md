@@ -44,4 +44,4 @@ npm run news:start
 ## 协议与当前边界
 连接后发送 aibot_subscribe，body 中带 bot_id 和 secret；只有对应请求的 errcode=0 才算认证成功。通过 JSON ping 保活，断线后按 1、2、4 秒逐步退避重连，上限 30 秒，并重新认证。消息使用 aibot_send_msg，body 含 chatid 和 markdown；等待同 req_id 的业务回执确认成功。发送超时或失败不会在传输层自动重发。
 本实现使用 websockets 的同步客户端和一个接收线程，按企业微信团队公开的[认证、心跳及回执协议](https://github.com/WecomTeam/wecom-aibot-python-sdk/blob/master/aibot/ws.py)实现需要的子集；[主动发送接口](https://github.com/WecomTeam/wecom-aibot-python-sdk/blob/master/aibot/client.py)说明了 userid 与群 chatid 的区别。
-为保持消息长度可控，超过约 4 KB 时压缩正文并保留末尾新闻链接；极长链接无法完整保留时会拒绝发送并记录失败。不接入自动对话、文件下载或 AI 回复。测试仅覆盖本机模拟服务；未填写真实 Bot ID、Secret 和 chat_id 前，不能宣称企业微信实际投递已通过。
+为保持消息长度可控，超过约 4 KB 时压缩正文并保留末尾新闻链接；极长链接无法完整保留时会拒绝发送并记录失败。不接入自动对话、文件下载或 AI 回复。2026-09-12 已通过真实服务的长连接认证，并在配置目标 chat_id 后发送 1 条群测试消息，收到成功业务回执。RSS 新闻向企业微信群的实际投递尚待运行验证。详细结果见[联调记录](experiments/002-wecom-long-connection/README.md)。
