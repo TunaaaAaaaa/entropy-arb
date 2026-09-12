@@ -6,7 +6,7 @@ JS 入口：npm run workbench -- inbox / collect / report；npm run crawl -- URL
 保存案例/假设：npm run db -- save-record hypothesis:example hypotheses/example.md --kind hypothesis --status draft。文件必须位于项目内；重复相同内容不新增版本。关联证据：npm run db -- link 研究版本ID 正文版本ID --relation supports（或 refutes/background）；关联实验：npm run db -- link-experiment 研究版本ID 实验ID。Markdown 为编辑输入/导出物，提交数据库版本才更新研究真源；导出使用 npm run db -- export-record case:005-web3feng-ai-tools。
 当前备份：npm run db -- backup-pg，返回备份目录；随后 npm run db -- restore-pg 备份目录，在独立数据库与目录校验恢复。数据库文件与证据文件必须一起保全。本版本备份命令面向本地 Compose PostgreSQL；云端连接需要更换 pg_dump 执行方式。npm run db -- backup 仅备份保留的旧 SQLite，不备份当前 PostgreSQL。
 备份和恢复副本目前仍在本机，未设置异地备份或后台任务。Docker 卷不是异地备份。切换后禁止直接改回旧 SQLite 来“回退”，这会遗漏新写入；优先备份当前 PostgreSQL，再恢复至独立 PostgreSQL 验证。旧 SQLite 增量回放目前没有自动化命令。
-目标：把人物复盘、规则变化和公开数据转化成可证伪的机制假设，积累案例、工具与失败经验。先研究一个狭窄领域：跨系统报价与结算差异；授权安全研究作为后续分支。
+目标：把人物复盘、规则变化和公开数据转化成可证伪的机制假设，积累案例、工具与失败经验。策略范围包括套利、天气预测、社交媒体预测等；每轮只选择一个具体假设。策略实现统一放在仓库 strategies/ 下，彼此平级，组织约定见 [策略目录](../strategies/README.md)。
 这是一套可运行的研究起步系统。信息采集、去重、来源健康、人工筛选和报告已由本地 CLI 承担；经济判断、历史资料补全和实验仍需研究者完成。它没有交易执行器，也没有后台调度或消息推送。
 ## 先看这几个文件
 新增：[正文爬虫与对话使用约定](CRAWLER.zh-CN.md)。收到具体帖子、新闻或规则页面链接时，优先使用 npm run crawl -- URL，缓存与证据入库由程序完成，再读取正文做分析。
@@ -83,12 +83,12 @@ python research-workbench/experiments/001-evidence-timing/replay.py
 ```
 它用合成数据演示未来信息和乱序到达如何误导研究，生成 result.json；不模拟任何人的实际收益。先读该目录 README，预测答案再运行。
 ## 怎样复用现有项目
-现有 main.py 的 --record-only 入口提供只读行情采集；entropy_arb/recorder.py 将每秒顶层盘口样本聚合为分钟 CSV。先用它学习两市场报价、价差和数据缺失，再补需要的原始事件记录。
+原套利引擎已移动到 [strategies/entropy-arbitrage](../strategies/entropy-arbitrage/README.zh-CN.md)，仅作为学习 demo。其 main.py 的 --record-only 入口提供只读行情采集；entropy_arb/recorder.py 将每秒顶层盘口样本聚合为分钟 CSV。研究工作台的日常命令不启动该 demo。
 当前分钟 CSV 没有完整订单深度、逐条 WebSocket 消息和真实成交回执，不能证明新闻策略的毫秒优势，也不能精确还原大额订单成交。当前连接 freshness 也不等于每个价位刚被更新，研究时要另辨接收心跳、盘口更新时间与事件时间。
-建议第一项实验：解释一次已观察价差到底来自计价币种、合约权利、延迟、费用还是流动性；输出对照表与反证，不先调开仓阈值。每次保存采集区间、市场标识、规则版本和数据质量检查。
+选择套利方向时，可解释一次价差来自计价币种、合约权利、延迟、费用还是流动性。选择天气或社交媒体方向时，可先验证一种预测方法是否优于预先指定的基准。每次保存观测区间、预测时点、市场标识、规则版本和数据质量说明；评价预测质量与评价交易收益分开进行。
 后续按需要增加原始消息 JSONL、断线/丢包检测、只读链上事件采集与固定输入回放。多市场实盘执行、持续运行、推送通知和付费信息源属于后续部署工作，不是当前已启用能力。
 ## 这个月先完成什么
 第 1 周：运行工具，精读种子案例中的两个；能区分一手来源、本人自述和缺失证据。
-第 2 周：选定一个机制，写首张假设卡；能解释其权利、资金流与结算过程。
+第 2 周：从任意策略方向选一个机制，写首张假设卡；说明输入、预测/决策时点、基准与证伪条件，涉及交易时补齐权利、资金流和结算过程。
 第 3 周：完成一个可重复的小实验，记录费用、时间、缺失数据与反证。
 第 4 周：用周复盘删掉无效来源和假设，整理一个失败模式及其下次监控条件。验收标准是形成一次完整研究闭环，而不是实现盈利。

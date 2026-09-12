@@ -1,0 +1,14 @@
+{
+  "name": "crypto-news-bot",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "setup": "node cli.mjs setup",
+    "start": "node cli.mjs start",
+    "once": "node cli.mjs once",
+    "smoke": "node cli.mjs smoke",
+    "verify": "node cli.mjs verify",
+    "wecom": "node cli.mjs wecom",
+    "test": "node cli.mjs test"
+  }
+}

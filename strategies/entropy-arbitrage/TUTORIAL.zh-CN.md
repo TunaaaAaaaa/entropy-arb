@@ -1,4 +1,5 @@
 # entropy-arb 学习教程（中文）
+本教程现位于 strategies/entropy-arbitrage/，仅作为历史 demo 教材。先阅读 [当前 demo 入口](README.zh-CN.md)，所有相对路径均以本策略目录为基准。市场参数和 SDK 指引保留原文，未重新核验。
 
 本教程分两部分：
 
@@ -193,7 +194,7 @@ premium_bps = (Entropy 价格 / 对冲腿价格 − 1) × 10_000
 
 ### 2.1 环境准备
 
-假设你已经在项目目录里（或先 `git clone`）：
+以下命令假设已经进入 strategies/entropy-arbitrage/ 目录：
 
 ```bash
 # 1. 创建虚拟环境

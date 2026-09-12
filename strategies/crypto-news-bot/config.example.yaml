@@ -1,0 +1,81 @@
+app:
+  name: "crypto-news-bot"
+  interval_minutes: 10
+  timezone: "Asia/Shanghai"
+  run_once: false
+
+database:
+  # 相对路径以这份配置文件所在目录为基准。
+  path: "data/news.db"
+
+sources:
+  rss:
+    - name: "CoinTelegraph"
+      url: "https://cointelegraph.com/rss"
+      enabled: true
+    - name: "CoinDesk"
+      url: "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      enabled: true
+    - name: "Decrypt"
+      url: "https://decrypt.co/feed"
+      enabled: true
+
+filters:
+  high_priority_keywords:
+    - "hack"
+    - "exploit"
+    - "attack"
+    - "drained"
+    - "stolen"
+    - "vulnerability"
+    - "listing"
+    - "delisting"
+    - "SEC"
+    - "CFTC"
+    - "ETF"
+    - "lawsuit"
+    - "Binance"
+    - "Coinbase"
+    - "Upbit"
+    - "Bithumb"
+    - "Tether"
+    - "USDT"
+    - "USDC"
+  medium_priority_keywords:
+    - "airdrop"
+    - "mainnet"
+    - "upgrade"
+    - "partnership"
+    - "funding"
+    - "acquisition"
+    - "token launch"
+    - "whale"
+    - "buyback"
+  ignore_keywords:
+    - "price prediction"
+    - "giveaway"
+    - "sponsored"
+    - "AMA"
+
+notifiers:
+  feishu:
+    enabled: true
+    # 留空时只预览候选，不发送，也不记为已推送。
+    webhook_url: ""
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+  wecom:
+    enabled: false
+    # 企业微信智能机器人 API 模式 / 长连接；凭据只填写在本地 config.yaml。
+    bot_id: ""
+    secret: ""
+    # 指定企业微信群的 chatid；可用 npm run news:wecom -- --discover 获取。
+    chat_id: ""
+    ws_url: "wss://openws.work.weixin.qq.com"
+    timeout_seconds: 10
+    heartbeat_seconds: 30
+  pushplus:
+    enabled: false
+    token: ""

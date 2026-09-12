@@ -73,4 +73,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ValueError as error:
+        print(f'Error: {error}', file=sys.stderr)
+        raise SystemExit(2)

@@ -18,7 +18,7 @@ from workbench import SCHEMA,add_item,review_item,collect,report,inbox
 from db.connection import raw_connect,settings,PgConnection
 from db.migrate import migrate
 from db.evidence import ingest_run,digest,time_value
-from db.research import save_record,link,diff_versions
+from db.research import save_record,link,diff_versions,list_records,export_record,import_research
 from db.import_legacy import import_legacy
 
 
@@ -157,3 +157,34 @@ class PostgresTests(unittest.TestCase):
         from workbench import connect
         with self.assertRaisesRegex(ValueError,'Cannot connect to PostgreSQL'): connect(self.root)
         self.assertFalse((self.root/'data/research.db').exists())
+
+    def test_record_discovery_and_prefix_export(self):
+        with raw_connect(self.root) as conn:
+            file=self.root/'case.md';file.write_text('## Demo\nEvidence',encoding='utf8')
+            for identity,kind in [('case:009-weather','case'),('case:009-social','case'),('hypothesis:demo','hypothesis')]:
+                save_record(conn,self.root,identity,kind,file)
+            self.assertEqual(len(list_records(conn)),3)
+            self.assertEqual(len(list_records(conn,'case')),2)
+            with self.assertRaisesRegex(ValueError,'Ambiguous'):
+                export_record(conn,self.root,'case:009')
+            self.assertFalse((self.root/'data/research-exports').exists())
+            for invalid in ('case:%','case:_','missing'):
+                with self.assertRaisesRegex(ValueError,'Unknown record'):
+                    export_record(conn,self.root,invalid)
+            prefix=export_record(conn,self.root,'case:009-w')
+            exact=export_record(conn,self.root,'case:009-weather')
+            self.assertEqual(prefix,exact)
+            self.assertEqual(Path(prefix['path']).read_text(encoding='utf8'),file.read_text(encoding='utf8'))
+            save_record(conn,self.root,'case:009','case',file)
+            self.assertEqual(export_record(conn,self.root,'case:009')['id'],'case:009')
+
+    def test_import_quotes_from_strategy_and_legacy_locations(self):
+        files=['logs/old.csv','strategies/entropy-arbitrage/logs/new.csv']
+        for number,relative in enumerate(files):
+            file=self.root.parent/relative;file.parent.mkdir(parents=True,exist_ok=True)
+            file.write_text(f'time_utc,price\n2026-09-10T00:00:00Z,{number}\n')
+        with raw_connect(self.root) as conn:
+            self.assertEqual(len(import_research(conn,self.root)['datasets']),2)
+            import_research(conn,self.root)
+            rows=conn.execute('SELECT metadata->>\'path\' FROM research.datasets').fetchall()
+            self.assertEqual({r[0] for r in rows},set(files))

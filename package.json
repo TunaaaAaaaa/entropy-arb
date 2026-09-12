@@ -1,0 +1,25 @@
+{
+  "name": "strategy-research-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local evidence and independent strategy research workspace",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "workbench": "npm --prefix research-workbench run workbench --",
+    "crawl": "npm --prefix research-workbench run crawl --",
+    "db": "npm --prefix research-workbench run db --",
+    "db:up": "npm --prefix research-workbench run db:up",
+    "db:setup": "npm --prefix research-workbench run db:setup",
+    "news:setup": "npm --prefix strategies/crypto-news-bot run setup",
+    "news:start": "npm --prefix strategies/crypto-news-bot run start --",
+    "news:once": "npm --prefix strategies/crypto-news-bot run once --",
+    "news:smoke": "npm --prefix strategies/crypto-news-bot run smoke --",
+    "news:verify": "npm --prefix strategies/crypto-news-bot run verify --",
+    "news:wecom": "npm --prefix strategies/crypto-news-bot run wecom --",
+    "test": "npm run test:workbench && npm run test:demo && npm run test:news",
+    "test:workbench": "npm --prefix research-workbench test",
+    "test:db": "npm --prefix research-workbench run test:db",
+    "test:demo": "npm --prefix strategies/entropy-arbitrage test",
+    "test:news": "npm --prefix strategies/crypto-news-bot test"
+  }
+}

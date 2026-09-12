@@ -50,7 +50,10 @@ class StubVenue:
 
 def render(eng, lang="en") -> str:
     dash = Dashboard(eng, BufferLogHandler(), "logs/engine.log", lang=lang)
-    console = Console(record=True, width=120, force_terminal=True)
+    # Test content on a wide fixed viewport; terminal-dependent truncation is not a content failure.
+    # Fix both dimensions: Rich otherwise falls back to 80 columns under TERM=dumb.
+    console = Console(record=True, width=200, height=50, force_terminal=True, legacy_windows=False)
+    dash.console = console
     console.print(dash._safe_render())
     return console.export_text()
 

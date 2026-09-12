@@ -13,3 +13,14 @@ __pycache__/
 venv/
 .pytest_cache/
 *.egg-info/
+
+# Independent strategy runtime data and secrets
+node_modules/
+.env.*
+!.env.example
+strategies/*/data/
+strategies/*/reports/
+strategies/*/storage/
+!strategies/crypto-news-bot/data/
+strategies/crypto-news-bot/data/*
+!strategies/crypto-news-bot/data/.gitkeep

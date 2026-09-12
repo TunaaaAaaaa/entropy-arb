@@ -1,0 +1,12 @@
+{
+  "name": "entropy-arbitrage-learning-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "help": "node cli.mjs help",
+    "record": "node cli.mjs record",
+    "analyze": "node cli.mjs analyze",
+    "test": "node cli.mjs test"
+  }
+}

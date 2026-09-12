@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>MockSource</title>
+    <link>https://example.com</link>
+    <description>Offline smoke test fixture</description>
+    <item>
+      <title>Binance announces listing of TEST token</title>
+      <link>https://example.com/test-news</link>
+      <pubDate>Fri, 11 Sep 2026 12:00:00 +0800</pubDate>
+      <description><![CDATA[<p>Binance will list TEST token.</p>]]></description>
+    </item>
+  </channel>
+</rss>

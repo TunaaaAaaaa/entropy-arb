@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 from psycopg.types.json import Jsonb
 from db.evidence import register_artifact, time_value, stable_hash
+from db.paths import quote_csvs
 
 
 def save_record(conn, root, identity, kind, file, status='draft'):
@@ -38,7 +39,7 @@ def import_research(conn,root):
     for kind,folder in [('case','cases'),('hypothesis','hypotheses')]:
         for file in sorted((root/folder).glob('[0-9]*.md')):
             result['records'].append(save_record(conn,root,kind+':'+file.stem,kind,file))
-    for file in sorted((root.parent/'logs').rglob('*.csv')):
+    for file in quote_csvs(root):
         artifact=register_artifact(conn,root,file)
         with file.open(encoding='utf8',newline='') as fh:
             reader=csv.DictReader(fh);rows=list(reader);fields=reader.fieldnames

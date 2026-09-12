@@ -1,304 +1,55 @@
-# entropy-arb
+# 策略研究工作台
+[English](README.md)
+这里用于搜集证据、提出假设、运行实验和保存结果。不同策略在 strategies/ 下平级组织；Entropy Arbitrage 已归为学习 demo，退出日常使用主路径。
+## 项目入口
 
-**[English documentation / 英文文档 → README.md](README.md)**
-
-本分支包含 **Crypto 机制研究工作台**和原有双交易所永续合约套利引擎。工作台用于采集公开信息、保存证据、管理案例和假设，并关联可重复的实验。采集命令不调用大模型，也不下单。
-
-## 研究工作台
-
-工作流程：**采集 → 筛选 → 抓取正文 → 提出假设 → 实验验证 → 保存证据和结论**。目前已实现 feed/page 采集、指定 URL 爬取、去重、人工筛选、报告和 PostgreSQL 版本化存储。后台调度、消息推送、异地备份和从研究自动触发交易尚未配置。
-
-| 文档 | 内容 |
+| 目录 | 用途 |
 |---|---|
-| [工作台指南](research-workbench/README.zh-CN.md) | 日常流程、人物案例和研究模板 |
-| [爬虫指南](research-workbench/CRAWLER.zh-CN.md) | 指定链接采集、缓存、正文提取与限制 |
-| [存储与迁移](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md) | PostgreSQL 迁移、校验和恢复 |
-| [来源清单](research-workbench/SOURCES.zh-CN.md) / [配置](research-workbench/sources.json) | 自动采集源和人工阅读清单 |
-| [技术路线](research-workbench/TECH-ROADMAP.zh-CN.md) | 按实验逐步学习所需技术 |
+| [research-workbench/](research-workbench/README.zh-CN.md) | 共用资料、案例、假设、证据与研究数据库 |
+| [strategies/](strategies/README.md) | 独立策略的代码、依赖与实验 |
+| [Entropy Arbitrage](strategies/entropy-arbitrage/README.zh-CN.md) | 保留用于阅读与测试的原套利 demo |
+| [币圈新闻机器人](strategies/crypto-news-bot/README.md) | V0.2：RSS → 关键词分级 → 飞书 / 企业微信长连接 → SQLite |
+| [架构与技术债](ARCHITECTURE.zh-CN.md) | 目录边界、兼容安排与后续工作 |
 
-### 安装与日常使用
-
-本地通过 **Node.js/npm 入口**使用项目。需要 Node.js 22+ 和 Python 3.11+；JS 启动器调用底层 Python 工作台和存储代码。若解释器无法通过 `python` 调用，可设置 `RESEARCH_PYTHON`。
-
+## 本地使用
+需要 Node.js 22+、Python 3.11+。根目录没有运行时 npm 依赖，研究工作台单独安装：
 ```powershell
-git clone https://github.com/TunaaaAaaaa/entropy-arb.git
-cd entropy-arb/research-workbench
-npm ci
-python -m pip install -r requirements-db.txt
+npm --prefix research-workbench ci
+python -m pip install -r research-workbench/requirements-db.txt
 ```
-
-新克隆不包含私人数据库、凭据和已采集历史。首次体验 SQLite 工作区可运行 `npm run workbench -- init`。已完成迁移的本机使用 PostgreSQL（`entropy_research_live`）；使用前启动 Docker Desktop，再运行 `npm run db:up`。以下 npm 命令均在 `research-workbench/` 目录执行。
-
+已配置的本机数据库：启动 Docker Desktop 后，可以直接在仓库根目录运行：
 ```powershell
+npm run db:up
+npm run db -- status
 npm run workbench -- collect
 npm run workbench -- inbox
-npm run crawl -- https://x.com/Web3Feng/status/2097002992755183901
 npm run workbench -- report
+npm run db -- records --kind case
+npm run db -- export-record case:009
 ```
-
-首次采集建立基线，通过 `inbox --include-baseline` 查看历史条目。来源频率只决定本次运行哪些来源到期，不会自动定时执行。正文爬虫使用 Crawlee/Cheerio，保存证据与内容哈希；有效缓存会被复用，需要重新抓取时加 `--force`。单条 X 帖子使用明确标注的第三方来源；暂不支持登录页面、依赖浏览器渲染的正文、完整人物时间线和图片 OCR。
-
-新机器配置 PostgreSQL 时，依次运行 `npm run db:setup`、`npm run db:up`、`npm run db -- migrate`。这些命令只准备数据库，**不会自动迁移数据或切换后端**。后续按[迁移指南](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md)导入旧数据和研究记录、备份、验证独立恢复，再激活 PostgreSQL。
-
-配置好 PostgreSQL 后：
-
+原来在 research-workbench/ 内执行的命令继续有效。根目录命令会切换到工作台执行，save-record 等命令的相对文件路径仍以 research-workbench/ 为基准。
+报告位置：research-workbench/reports/latest.md。collect 只采集配置中到期的来源；指定文章用 npm run crawl -- URL；全网搜集和 AI 筛选按[本地按需流程](research-workbench/LOCAL-COLLECTION.zh-CN.md)执行。
+新克隆不包含数据库、密钥和历史数据。先按[数据库配置与迁移](research-workbench/POSTGRES-MIGRATION-PLAN.zh-CN.md)配置；db:up 不会自动导入历史资料或选择数据库后端。
+## 学习顺序
+第一周阅读并分析案例；第二周从任意策略方向选一个可验证假设；第三周完成可重复实验；第四周整理反证和结果。天气、社交媒体、套利均可作为独立方向。详见[工作台指南](research-workbench/README.zh-CN.md)与[案例目录](research-workbench/cases/INDEX.md)。
+## 新闻机器人 V0.2
+在仓库根目录运行。机器人使用自己的 Python 虚拟环境和 SQLite，不需要研究数据库或 Docker：
 ```powershell
-npm run db -- status
-npm run db -- search "赎回"
-npm run db -- backup-pg
-# 将 BACKUP_DIRECTORY 替换为 backup-pg 返回的备份目录。
-npm run db -- restore-pg BACKUP_DIRECTORY
+npm run news:setup
+Copy-Item strategies/crypto-news-bot/config.example.yaml strategies/crypto-news-bot/config.yaml
+npm run news:smoke
+npm run news:once -- --dry-run
 ```
-
-使用 `document VERSION_ID` 读取证据正文，`diff LEFT_VERSION_ID RIGHT_VERSION_ID` 比较同一文档的两个版本，`save-record RECORD_ID FILE --kind hypothesis --status draft` 保存研究修订。用 `link RECORD_VERSION_ID DOCUMENT_VERSION_ID --relation supports` 关联证据，也支持 `refutes` 和 `background`。修改 Markdown 后需通过 `save-record` 保存才会更新数据库；`export-record RECORD_ID` 可导出当前版本。
-
-### 数据与恢复
-
-| 数据 | 存储位置 |
-|---|---|
-| 来源、收件箱、筛选和采集当前状态 | PostgreSQL 的 `ops` schema |
-| 正文版本、观测记录、哈希和证据引用 | PostgreSQL 的 `evidence` schema |
-| 案例、假设、修订历史、数据集和实验关联 | PostgreSQL 的 `research` schema |
-| 原始响应、提取正文、快照和不可变文件副本 | `research-workbench/data/`，数据库保存引用 |
-| 可编辑研究材料和实验输入 | `research-workbench/cases/`、`hypotheses/`、`experiments/` |
-| 行情 CSV 与生成报告 | `logs/`、`research-workbench/reports/` |
-| 本地连接、后端设置和备份 | `research-workbench/data/local/`、`data/pg-backups/` |
-
-业务状态和历史证据在同一个 PostgreSQL 数据库内按 schema 与版本记录分开管理；较大的证据文件仍放在磁盘。备份必须同时保全**数据库和引用的文件**。运行数据、凭据、报告和备份均不进入 Git，推送仓库不会上传这些内容。
-
-`backup-pg` 当前面向本地 Docker Compose 数据库；`restore-pg` 恢复到独立数据库并校验表内容和文件。备份目前仍在本机，Docker 卷不是异地备份。迁移云端还需配置持久化存储、异地备份策略并调整备份执行方式。保留的 `data/research.db` 是旧 SQLite 快照：`backup` 只备份 SQLite，PostgreSQL 已有新写入后直接切回旧库会遗漏新数据。
-
-### 验证
-
+配置子项目 config.yaml 的飞书 Webhook 后，先运行 npm run news:verify 准备并核对一条新闻，再用 npm run news:verify -- --send 单条联调、入库并检查去重。npm run news:once 运行整轮并发送；npm run news:start 按配置定时运行。没有任何可用通知渠道时只预览，不写入已推送表。首次运行会处理 RSS 当前提供的全部条目；它不负责历史文章回溯。详见[操作指南](strategies/crypto-news-bot/README.md)。
+企业微信支持 Bot ID / Secret 长连接：npm run news:wecom 检查认证，npm run news:wecom -- --discover 获取目标群 chat_id，npm run news:wecom -- --send-test 发送一条测试消息。凭据和群标识填入本地 config.yaml，参见[企业微信指南](strategies/crypto-news-bot/WECOM.md)。启用后两个渠道分别记录投递结果；没有任何可用渠道时才只预览。
+## 验证
 ```powershell
-npm test
+npm run test:workbench
 npm run test:db
+npm run test:demo
+npm run test:news
 ```
-
-爬虫测试覆盖正文提取、缓存和失败处理。数据库测试包含使用隔离测试库的 PostgreSQL 集成测试，需要已配置且运行中的 PostgreSQL，以及能够创建测试库的数据库角色。
-
-## 原有交易模块
-
-原有引擎仍可独立使用。其中一条腿永远是 **Entropy**（Hyperliquid 上的
-`io` builder dex）；另一条腿（对冲腿）三选一：
-
-| `--hedge` | 交易所 | 计价货币 | 吃单费 | 协议 |
-|---|---|---|---|---|
-| `lighter` | Lighter 主网 | USDC | 0 bps | zkLighter ws（增量订单簿，异步结算） |
-| `lighter-rh` | Lighter Robinhood 链 | **USDG** | 0 bps | zkLighter ws |
-| `tradexyz` | Hyperliquid trade.xyz dex | USDC | ~1 bps | HL l2Book，IOC 同步结算 |
-
-> **推荐链接** —— 通过以下链接注册即可支持本项目：
-> - Entropy — Tier 4 推荐，100% 返佣：<https://entropy.io/?r=yourquantguy>
-> - Lighter Robinhood 链：<https://robinhoodchain.lighter.xyz/?referral=QUANT>
-> - trade.xyz（Hyperliquid）：<https://app.hyperliquid.xyz/join/QUANTGUY>
-
-当同一品种在一边贵、另一边便宜时，机器人同时在贵的一边卖出、便宜的一边买入
-（均为吃单），持有 delta 中性仓位，等溢价回归后反向平仓。所有交易决策使用的
-价格都来自**将要实际成交的那个交易所的真实订单簿**——Hyperliquid 的盘口来自
-官方 websocket（`wss://api.hyperliquid.xyz/ws`），Lighter 的盘口来自 Lighter
-官方 websocket。
-
-机器人运行期间（即使没有密钥、没有开策略）会自动把两边盘口记录成**分钟级
-CSV 数据**，配套的分析工具可以直接把这些数据变成策略所需的三个核心参数。
-
-## 信号逻辑
-
-整个信号就是 `config.yaml` 里三个数字，由你根据采集的数据自己设定：
-
-```
-premium_bps =（Entropy 价格 / 对冲腿价格 − 1）× 10 000
-
-                          ┌──────────────  卖出 Entropy + 买入对冲腿
-midline + upper  ───────────────────────────────────────────────────
-                                       ▲
-midline          ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┼ ─ ─   溢价的长期中枢
-                                       ▼
-midline − lower  ───────────────────────────────────────────────────
-                          └──────────────  买入 Entropy + 卖出对冲腿
-```
-
-- `midline_bps` —— 溢价的常态水平。跨所溢价几乎从不以零为中心（预言机不同、
-  计价货币不同、新上市溢价等），零中心的带只会朝一个方向开仓、打满仓位上限、
-  永远无法平仓。请实际测量溢价所在的位置，然后填入。
-- `upper_bps` / `lower_bps` —— 中枢上下两侧的入场带宽。
-
-两个方向的门槛都作用于**可实际成交的价格**（Entropy 买一 对 对冲腿卖一，
-反之亦然），并且是**扣除双边吃单手续费之后的净门槛**——引擎会在阈值之上
-另行叠加手续费。报价层面的完整往返目标为**扣除配置的吃单费后价差 ≥ upper + lower bps**；
-实际盈利没有保证，还取决于成交、滑点、资金费和执行失败等因素。
-
-有一点必须理解：当 `midline_bps: 5` 时，买入 Entropy 的门槛是
-`lower − midline`，可能为**负数**。这是有意为之——如果 Entropy 长期贵 5 bps，
-那么在溢价为 0 时买入它，相对其自身均衡水平就是便宜了 5 bps，这笔交易正是
-此前在 `midline + upper` 处卖出的获利平仓。这同时意味着**中枢填错就是亏钱
-策略**：若真实溢价中枢是 0 而你填了 5，机器人会整天以公允价买入 Entropy。
-先测量、再交易——数据采集器和分析工具就是为此而生。
-
-## 交易模块快速开始
-
-```bash
-git clone https://github.com/TunaaaAaaaa/entropy-arb.git && cd entropy-arb
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt          # 数据采集只需要这些
-
-cp config.example.yaml config.yaml       # 策略配置（阈值、规模、风控）
-cp .env.example .env                     # 密钥——交易必填
-```
-
-交易哪个市场**不在**配置文件中——每次启动时用命令行参数显式指定：
-`--symbol`（两个交易所共同交易的品种）和 `--hedge`（三选一：
-`lighter`、`lighter-rh`、`tradexyz`；Entropy 永远是
-另一条腿）。
-
-本机器人**没有模拟盘**——要么采集数据（`--record-only`），要么实盘交易。
-请用采集的数据和最小的仓位上限来验证策略，而不是模拟成交。
-
-**第一步：先采集数据**（不需要任何密钥）：
-
-```bash
-python3 main.py --record-only --symbol SNDK --hedge lighter-rh
-```
-
-至少运行几个小时（最好一整天——溢价存在日内规律），数据写入
-`logs/minutes.csv`。
-
-**第二步：分析数据、设定阈值：**
-
-```bash
-python3 tools/analyze.py
-```
-
-它会输出溢价分布、各档带宽的历史触发频率，以及可直接粘贴进
-`config.yaml` 的 `thresholds:` 配置块。
-
-**第三步：实盘** —— 填写 `.env`，安装签名 SDK，仓位上限从刚好满足
-交易所最小名义的水平开始：
-
-```bash
-pip install -r requirements-live.txt
-python3 main.py --symbol SNDK --hedge lighter-rh
-```
-
-不带 `--record-only` 运行时，只要两边行情就绪且溢价越过带宽，就会立即
-发送真实订单。
-
-**仪表盘。** 在终端运行时会显示实时 Rich 仪表盘：两边盘口（含数据龄/点差）、
-持仓与上限、账户权益与本次会话盈亏、两个方向的可成交溢价对比完整门槛
-（已含手续费与库存加价，● 表示已武装）、数据采集进度、最近成交，以及日志
-尾部（完整日志写入 `logging.file`，默认 `logs/engine.log`）。`--record-only`
-模式同样可用。加 `--cn` 参数可使仪表盘全部以中文显示。`--no-dashboard`
-可切换为纯日志输出（nohup/systemd 等非终端环境会自动退回纯日志），也可
-设置 `logging.dashboard: false`。
-
-## 数据采集与分析
-
-采集器在所有模式下自动运行（`recorder.enabled: true`）：每秒采样一次两边
-的真实盘口，每分钟写一行：
-
-| 列 | 含义 |
-|---|---|
-| `minute_ts`, `time_utc` | 分钟起点（epoch 秒 / ISO UTC） |
-| `entropy_bid/ask`, `hedge_bid/ask` | 该分钟最后一次有效盘口 |
-| `premium_open/high/low/close/mean/std_bps` | Entropy 相对对冲腿的中间价溢价 |
-| `sell_edge_mean/max_bps` | 卖出 Entropy 方向的可成交溢价（Entropy 买一 / 对冲腿卖一 − 1） |
-| `buy_edge_mean/max_bps` | 买入 Entropy 方向的可成交溢价（对冲腿买一 / Entropy 卖一 − 1） |
-| `samples` | 该分钟约 60 秒中两边盘口同时有效的秒数 |
-
-采集的 edge 为费前口径；分析工具在统计触发频率前会先扣除 `--fees-bps`
-（请传入**两边吃单费之和**——零费交易所默认 0.0，对冲腿为 `tradexyz` 时
-约为 1.0），因此其表格与建议值可直接填入配置。`--hours 24`
-可只分析最近数据；溢价中枢会漂移，请定期重新分析并更新 `config.yaml`。
-
-## 配置说明
-
-策略在 `config.yaml`（严格校验——未知键名直接报错），密钥在 `.env`。
-交易市场由命令行指定（`--symbol`、`--hedge`）。完整的双语注释参考：
-[config.example.yaml](config.example.yaml)。核心项：
-
-| 键 | 含义 | 默认值 |
-|---|---|---|
-| `thresholds.midline_bps` | 溢价中枢（必须实测！） | — |
-| `thresholds.upper_bps` / `lower_bps` | 入场带宽（> 0） | — |
-| `entropy.dex` | Entropy 在 Hyperliquid 上的 dex 名 | `io` |
-| `*.taker_fee_bps` | 各所吃单费 | 0.0（tradexyz 对冲腿：1.0） |
-| `*.max_position_usd` | 各所持仓上限 | 1000 |
-| `*.max_orders_per_min` | 各所每分钟下单预算（滑动 60 秒） | 120；Lighter 对冲腿 30 |
-| `sizing.take_fraction` | 吃掉可套利深度的比例 | 0.5 |
-| `sizing.max_order_notional_usd` | 单笔名义上限 | 500 |
-| `inventory.scale_bps` / `floor_frac` | 库存阶梯（仓位超过上限的 `floor_frac` 后额外加价） | 10 / 0.5 |
-| `execution.premium_persist_sec` | 信号需持续多久才触发 | 0.3 |
-| `execution.*` | 滑点保护、超时、对账周期等 | 见配置文件 |
-| `recorder.*` | 分钟数据采集器 | 开启，`logs/minutes.csv` |
-| `logging.dashboard` / `logging.file` | 终端仪表盘；开启时日志写入文件 | 开启，`logs/engine.log` |
-
-## 密钥配置（`.env`，仅实盘需要）
-
-- **Entropy / tradexyz（Hyperliquid）** —— 在
-  <https://app.hyperliquid.xyz/API> 创建 API（agent）钱包。`HL_PRIVATE_KEY`
-  填 **agent 钱包私钥**，`HL_ACCOUNT_ADDRESS` 填主账户地址。当
-  `--hedge tradexyz` 时两条腿默认共用该账户（内部自动共享 nonce 序列）；
-  如需分开，设置 `HL_PRIVATE_KEY_XYZ` / `HL_ACCOUNT_ADDRESS_XYZ`。注意给
-  所交易的各 dex 分别充入保证金。
-- **Lighter** —— `LIGHTER_ACCOUNT_INDEX`、`LIGHTER_API_KEY_INDEX`、
-  `LIGHTER_API_PRIVATE_KEY`，必须注册在与启动参数 `--hedge` **相同的部署**上
-  （主网与 Robinhood 链是两套独立的账户和密钥——参见
-  [lighter-python](https://github.com/elliottech/lighter-python)）。
-
-## 执行机制
-
-- 两条腿**同时发出吃单**：Lighter 用带均价保护的市价单，在鉴权 websocket
-  上异步确认成交；Hyperliquid 用 IOC 限价单同步结算（结果未知时轮询
-  orderStatus 兜底）。
-- **持续性闸门**（`premium_persist_sec`）：信号先"武装"，持续存在才触发，
-  过滤单 tick 的假信号。
-- **库存阶梯**：仓位超过上限的 `floor_frac` 后，同方向加仓需要线性递增的
-  额外溢价，满仓时最高加 `scale_bps`。
-- **净敞口对冲**：两腿成交不对等时立即用 reduce-only 单（带滑点保护）
-  削减敞口，并每 `reconcile_sec` 与链上仓位对账。
-- **故障隔离**：被限频的交易所短暂暂停；交易所不可达（如例行维护）时暂停
-  交易并每 `venue_probe_sec` 探测直至恢复；连续 `max_consecutive_errors`
-  次执行异常则整体停机。
-- **仅实盘**：没有模拟成交模式。`--record-only` 是唯一无风险的运行方式，
-  其余都是真金白银。
-
-## 目录结构
-
-```
-research-workbench/      研究 CLI、爬虫、案例与实验
-research-workbench/db/   PostgreSQL 迁移、导入、备份与恢复
-research-workbench/data/ 本地证据、配置与备份（Git 忽略）
-main.py                  入口（--record-only，默认即实盘）
-entropy_arb/config.py    YAML + .env 配置契约与校验
-entropy_arb/book.py      订单簿 + 含手续费的套利规模计算
-entropy_arb/feeds.py     官方 HL ws + zkLighter ws 行情
-entropy_arb/venue_hl.py  Hyperliquid dex 适配器（Entropy、tradexyz）
-entropy_arb/venue_lighter.py  zkLighter 适配器（主网、Robinhood 链）
-entropy_arb/engine.py    双交易所策略主循环
-entropy_arb/dashboard.py Rich 终端仪表盘
-entropy_arb/recorder.py  分钟级盘口数据采集
-tools/analyze.py         minutes.csv -> 阈值建议
-tests/                   python3 -m pytest tests/
-```
-
-## 已知风险
-
-- **中枢填错就是亏钱策略。** 溢价中枢会漂移，请定期重新测量并保持
-  `config.yaml` 与市场同步。
-- **USDG 基差**（`lighter-rh`）：对冲腿以 USDG 计价，持续溢价中有
-  一部分是稳定币本身的基差；midline 吸收其水平，但 USDG 的*变动*是真实盈亏。
-- **资金费**：两个交易所、两套独立的资金费率，持仓成本未建模——仓位上限
-  请设小一些。
-- **薄盘口**：Entropy 深度可能很小；`take_fraction` 与名义上限控制单笔规模，
-  但部分成交后对冲腿的滑点是真实存在的。
-- **交易时段**：股票类永续（如 SNDK）盘后各所预言机行为不同，建议加宽带宽
-  或避开盘后。
-- **单腿风险**：一条腿成交后另一条可能失败。机器人会自动对冲并对账，但
-  仍需人工关注。
-
-风险自负。本软件直接操作真实资金，本文档不构成任何投资建议。请从最小的
-仓位上限开始。
-
-## 开源协议
-
-[MIT](LICENSE)
+数据库测试需要已配置 PostgreSQL，并在隔离测试库运行。demo 测试需要单独安装其 Python 基础依赖与 pytest；测试不会启动交易。
+## 数据与兼容
+研究数据库、research-workbench/data/ 和现有 Compose 名称/卷保持原位。根目录 logs/ 保留为历史数据入口；新的策略输出使用各自目录。原根目录 .env 和 config.yaml 已在本机移动到 demo 目录，仍被 Git 忽略。
+数据库备份：npm run db -- backup-pg。数据库与其引用的证据文件需要一起备份；Git 推送不包含采集原文、私人配置或数据库。

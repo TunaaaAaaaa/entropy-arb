@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 import shutil
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
+from db.paths import quote_csvs
 
 
 def digest(path):
@@ -13,7 +15,7 @@ def digest(path):
 
 
 def sqlite_counts(file):
-    with sqlite3.connect(Path(file).resolve().as_uri() + '?mode=ro', uri=True) as db:
+    with closing(sqlite3.connect(Path(file).resolve().as_uri() + '?mode=ro', uri=True)) as db:
         if db.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
             raise ValueError('SQLite integrity check failed')
         names = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
@@ -29,13 +31,13 @@ def make_backup(root):
     target.mkdir(parents=True)
     dest_db = target / 'files/research-workbench/data/research.db'
     dest_db.parent.mkdir(parents=True)
-    with sqlite3.connect((root / 'data/research.db').as_uri() + '?mode=ro', uri=True) as source:
-        with sqlite3.connect(dest_db) as dest:
+    with closing(sqlite3.connect((root / 'data/research.db').as_uri() + '?mode=ro', uri=True)) as source:
+        with closing(sqlite3.connect(dest_db)) as dest:
             source.backup(dest)
     candidates = [root / 'sources.json']
     for folder in ['data/snapshots', 'data/crawl/raw', 'data/crawl/documents', 'data/crawl/runs', 'data/manual', 'cases', 'hypotheses', 'experiments']:
         candidates.extend(p for p in (root / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
-    candidates.extend((root.parent / 'logs').rglob('*.csv'))
+    candidates.extend(quote_csvs(root))
     for source in candidates:
         if not source.exists():
             continue

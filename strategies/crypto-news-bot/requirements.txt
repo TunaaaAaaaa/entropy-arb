@@ -1,0 +1,6 @@
+requests>=2.32,<3
+feedparser>=6.0,<7
+PyYAML>=6.0,<7
+APScheduler>=3.11,<4
+pytest>=8,<10
+websockets>=15,<18
